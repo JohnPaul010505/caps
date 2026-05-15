@@ -107,7 +107,7 @@ export default function Sidebar() {
             }}>{initials}</div>
             <div>
               <p style={{ fontSize: '13px', fontWeight: '600', color: '#e2e2f0', lineHeight: 1.2 }}>Admin</p>
-              <p style={{ fontSize: '11px', color: '#5050780' }}>Super user</p>
+              <p style={{ fontSize: '11px', color: '#505078' }}>Super user</p>
             </div>
           </div>
           <button

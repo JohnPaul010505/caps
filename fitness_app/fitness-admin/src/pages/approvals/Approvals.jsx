@@ -2,12 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../services/supabase'
 import Layout from '../../components/layout/Layout'
 
-function withTimeout(promise, ms = 30000) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
-  ])
-}
+// Module-level cache — survives navigation, resets only on full page refresh
+const _cache = { pending: null }
 
 function card(style) {
   return {
@@ -43,31 +39,25 @@ function Field({ label, value }) {
 }
 
 export default function Approvals() {
-  const [pending,       setPending]       = useState(null)
-  const [error,         setError]         = useState(false)
-  const [waking,        setWaking]        = useState(false)
+  const [pending,       setPending]       = useState(_cache.pending)
   const [actionLoading, setActionLoading] = useState(null)
 
   useEffect(() => { fetchPending() }, [])
 
   async function fetchPending() {
-    setError(false)
-    setPending(null)
-    setWaking(false)
-    const wakingTimer = setTimeout(() => setWaking(true), 5000)
+    // Serve cache immediately — skeleton only on very first load
+    if (_cache.pending) setPending(_cache.pending)
     try {
-      const { data, error: err } = await withTimeout(
-        supabase.from('members').select('*').eq('membership_status', 'pending').order('created_at', { ascending: false })
-      )
-      clearTimeout(wakingTimer)
-      setWaking(false)
+      const { data, error: err } = await supabase
+        .from('members')
+        .select('*')
+        .eq('membership_status', 'pending')
+        .order('created_at', { ascending: false })
       if (err) throw err
-      setPending(data || [])
+      _cache.pending = data || []
+      setPending(_cache.pending)
     } catch {
-      clearTimeout(wakingTimer)
-      setWaking(false)
-      setError(true)
-      setPending([])
+      if (!_cache.pending) setPending([])
     }
   }
 
@@ -82,7 +72,9 @@ export default function Approvals() {
       exp.setMonth(exp.getMonth() + months)
       const expiration_date = exp.toISOString().split('T')[0]
       await supabase.from('members').update({ membership_status: 'active', expiration_date }).eq('id', member.id)
-      setPending(prev => (prev || []).filter(m => m.id !== member.id))
+      const updated = (pending || []).filter(m => m.id !== member.id)
+      _cache.pending = updated
+      setPending(updated)
     } catch { /* ignore */ }
     finally { setActionLoading(null) }
   }
@@ -91,7 +83,9 @@ export default function Approvals() {
     setActionLoading(id)
     try {
       await supabase.from('members').delete().eq('id', id)
-      setPending(prev => (prev || []).filter(m => m.id !== id))
+      const updated = (pending || []).filter(m => m.id !== id)
+      _cache.pending = updated
+      setPending(updated)
     } catch { /* ignore */ }
     finally { setActionLoading(null) }
   }
@@ -111,24 +105,6 @@ export default function Approvals() {
           </div>
         )}
       </div>
-
-      {/* Banners */}
-      {waking && !error && (
-        <div style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px', color: '#a78bfa', fontSize: '13px' }}>
-          <svg style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} width="15" height="15" viewBox="0 0 24 24" fill="none">
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-            <circle opacity=".25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-            <path opacity=".75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-          </svg>
-          Waking up database… please wait.
-        </div>
-      )}
-      {error && (
-        <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '10px', padding: '12px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: '#f87171', fontSize: '13px' }}>
-          ⚠️ Could not load approvals. Check your Supabase project is active.
-          <button onClick={fetchPending} style={{ background: 'rgba(239,68,68,0.2)', border: 'none', color: '#f87171', padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>↻ Retry</button>
-        </div>
-      )}
 
       {/* Content */}
       {pending === null ? (

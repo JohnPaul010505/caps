@@ -32,10 +32,18 @@ function iStyle(focused) {
 }
 
 function sStyle(focused) {
+  // NOTE: Do NOT spread iStyle here because iStyle sets `background` shorthand
+  // which conflicts with backgroundImage/backgroundPosition — split them out manually
   return {
-    ...iStyle(focused), cursor:'pointer', appearance:'none',
+    width:'100%', boxSizing:'border-box',
+    backgroundColor: focused ? 'rgba(16,185,129,0.05)' : 'rgba(255,255,255,0.04)',
     backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b6b9b' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
-    backgroundRepeat:'no-repeat', backgroundPosition:'right 12px center', paddingRight:'32px',
+    backgroundRepeat:'no-repeat',
+    backgroundPosition:'right 12px center',
+    border:`1px solid ${focused ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.08)'}`,
+    borderRadius:'8px', padding:'9px 12px', paddingRight:'32px',
+    fontSize:'13px', color:'#e2e2f0', outline:'none', transition:'all 0.2s',
+    cursor:'pointer', appearance:'none',
   }
 }
 
@@ -69,17 +77,19 @@ export default function QRCodePage() {
 
   async function handleSubmit(e) {
     e.preventDefault()
+    console.log('SUBMIT STARTED')
     if (!form.full_name.trim()) { setErr('Full name is required.'); return }
 
     setSaving(true)
     setErr('')
+    console.log('CALLING SUPABASE INSERT...')
 
     try {
       let expiration_date = null
       if (form.auto_approve) {
-        const months = form.membership_type==='Quarterly' ? 3
-          : form.membership_type==='6 Months' ? 6
-          : form.membership_type==='Annual'   ? 12 : 1
+        const months = form.membership_type === 'Quarterly' ? 3
+          : form.membership_type === '6 Months' ? 6
+          : form.membership_type === 'Annual'   ? 12 : 1
         const exp = new Date()
         exp.setMonth(exp.getMonth() + months)
         expiration_date = exp.toISOString().split('T')[0]
@@ -102,20 +112,21 @@ export default function QRCodePage() {
       }
 
       const { error: insertErr } = await supabase.from('members').insert(payload)
+      console.log('INSERT COMPLETED. Error:', insertErr)
 
       if (insertErr) {
-        // Surface the real Supabase error
         setErr(insertErr.message || 'Failed to save member.')
-        setSaving(false)
+        setSaving(false)   // ← FIX: clear saving on error
         return
       }
 
-      // ✅ Success — go straight to Approvals (or Members if auto-approved)
+      // ✅ Success — reset saving BEFORE navigating
+      setSaving(false)
       navigate(form.auto_approve ? '/members' : '/approvals')
 
     } catch (e) {
       setErr(e?.message || 'Unexpected error. Please try again.')
-      setSaving(false)
+      setSaving(false)   // ← FIX: always clear saving on any error
     }
   }
 
@@ -220,11 +231,15 @@ export default function QRCodePage() {
             <div style={{ background: form.auto_approve ? 'rgba(16,185,129,0.08)' : 'rgba(245,158,11,0.08)', border:`1px solid ${form.auto_approve ? 'rgba(16,185,129,0.2)' : 'rgba(245,158,11,0.2)'}`, borderRadius:'8px', padding:'10px 14px', marginBottom:'18px', display:'flex', alignItems:'center', gap:'8px', fontSize:'12px', color: form.auto_approve ? '#34d399' : '#fbbf24' }}>
               <span>{form.auto_approve ? '✅' : '⏳'}</span>
               {form.auto_approve
-                ? 'Member will be set as Active and you\'ll be taken to Members.'
-                : 'Member will be added as Pending — you\'ll be taken to Approvals to review.'}
+                ? "Member will be set as Active and you'll be taken to Members."
+                : "Member will be added as Pending — you'll be taken to Approvals to review."}
             </div>
 
-            <button type="submit" disabled={saving} style={{ width:'100%', padding:'13px', background: saving ? 'rgba(16,185,129,0.4)' : 'linear-gradient(135deg,#059669,#10b981)', color:'#fff', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:'700', cursor: saving ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', boxShadow: saving ? 'none' : '0 6px 20px rgba(16,185,129,0.35)', transition:'all 0.2s' }}>
+            <button
+              type="submit"
+              disabled={saving}
+              style={{ width:'100%', padding:'13px', background: saving ? 'rgba(16,185,129,0.4)' : 'linear-gradient(135deg,#059669,#10b981)', color:'#fff', border:'none', borderRadius:'10px', fontSize:'14px', fontWeight:'700', cursor: saving ? 'not-allowed' : 'pointer', display:'flex', alignItems:'center', justifyContent:'center', gap:'8px', boxShadow: saving ? 'none' : '0 6px 20px rgba(16,185,129,0.35)', transition:'all 0.2s' }}
+            >
               {saving ? (
                 <>
                   <svg style={{ animation:'spin2 1s linear infinite' }} width="16" height="16" viewBox="0 0 24 24" fill="none">
