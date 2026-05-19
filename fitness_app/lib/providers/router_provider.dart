@@ -21,55 +21,47 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final loc = state.matchedLocation;
 
-      // Always allow splash through — no redirect
-      if (loc == '/splash') return null;
+      // ── Splash handling ───────────────────────────────────────────
+      if (loc == '/splash') {
+        // Still resolving auth — stay on splash
+        if (auth.loading) return null;
+        // Already logged in — skip splash entirely, go straight to app
+        if (auth.user != null) {
+          return auth.role == 'trainer' ? '/trainer' : '/member';
+        }
+        // Not logged in — let splash show its animation and button
+        return null;
+      }
 
-      // While auth is loading, hold on login (not splash, avoids flicker)
-      if (auth.loading) return '/login';
+      // ── While auth is resolving, keep showing splash ──────────────
+      if (auth.loading) return '/splash';
 
       final loggedIn = auth.user != null;
       final onLogin  = loc == '/login';
 
-      // Not logged in → send to login
+      // ── Not logged in → must go to login ─────────────────────────
       if (!loggedIn) return onLogin ? null : '/login';
 
-      // Logged in but sitting on login → redirect by role
+      // ── Already logged in and on login page → redirect by role ────
       if (onLogin) {
-        switch (auth.role) {
-          case 'trainer':
-            return '/trainer';
-          case 'member':
-            return '/member';
-          default:
-            return '/member';
-        }
+        return auth.role == 'trainer' ? '/trainer' : '/member';
       }
 
-      // Role-based route protection
-      if (auth.role == 'member' && loc.startsWith('/trainer')) {
-        return '/member';
-      }
-      if (auth.role == 'trainer' && loc.startsWith('/member')) {
-        return '/trainer';
-      }
+      // ── Role-based route protection ───────────────────────────────
+      if (auth.role == 'member'  && loc.startsWith('/trainer')) return '/member';
+      if (auth.role == 'trainer' && loc.startsWith('/member'))  return '/trainer';
 
       return null;
     },
     routes: [
-
-      // ── Splash ────────────────────────────────────────────────────────
       GoRoute(
         path: '/splash',
         builder: (_, __) => const SplashScreen(),
       ),
-
-      // ── Auth ──────────────────────────────────────────────────────────
       GoRoute(
         path: '/login',
         builder: (_, __) => const LoginScreen(),
       ),
-
-      // ── Trainer routes ────────────────────────────────────────────────
       GoRoute(
         path: '/trainer',
         builder: (_, __) => const TrainerHomeScreen(),
@@ -82,36 +74,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
         ],
       ),
-
-      // ── Member routes ─────────────────────────────────────────────────
       GoRoute(
         path: '/member',
         builder: (_, __) => const MemberHomeScreen(),
         routes: [
-          GoRoute(
-            path: 'progress',
-            builder: (_, __) => const ProgressScreen(),
-          ),
-          GoRoute(
-            path: 'chat',
-            builder: (_, __) => const ChatScreen(),
-          ),
-          GoRoute(
-            path: 'log-meal',
-            builder: (_, __) => const LogMealScreen(),
-          ),
-          GoRoute(
-            path: 'log-workout',
-            builder: (_, __) => const LogWorkoutScreen(),
-          ),
-          GoRoute(
-            path: 'profile',
-            builder: (_, __) => const ProfileScreen(),
-          ),
+          GoRoute(path: 'progress',    builder: (_, __) => const ProgressScreen()),
+          GoRoute(path: 'chat',        builder: (_, __) => const ChatScreen()),
+          GoRoute(path: 'log-meal',    builder: (_, __) => const LogMealScreen()),
+          GoRoute(path: 'log-workout', builder: (_, __) => const LogWorkoutScreen()),
+          GoRoute(path: 'profile',     builder: (_, __) => const ProfileScreen()),
         ],
       ),
-
-      // ── Shared profile ────────────────────────────────────────────────
       GoRoute(
         path: '/profile',
         builder: (_, __) => const ProfileScreen(),

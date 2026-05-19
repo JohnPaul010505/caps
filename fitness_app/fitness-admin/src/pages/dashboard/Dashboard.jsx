@@ -2,48 +2,57 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../services/supabase'
 import Layout from '../../components/layout/Layout'
 
-// Module-level cache — survives navigation, resets only on full page refresh
 const _cache = { stats: null, recent: null, pending: null }
 
-function StatCard({ icon, label, value, sub, color = '#7c3aed' }) {
+const C = {
+  card: { background: '#141824', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '12px' },
+}
+
+function StatCard({ icon, label, value, sub, color = '#3b82f6', loading }) {
   return (
-    <div style={{
-      background: '#1a1a2e',
-      border: '1px solid rgba(255,255,255,0.07)',
-      borderRadius: '14px',
-      padding: '22px 24px',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <span style={{ fontSize: '22px' }}>{icon}</span>
-        <div style={{
-          width: '8px', height: '8px', borderRadius: '50%',
-          background: color, boxShadow: `0 0 8px ${color}`,
-        }} />
-      </div>
-      <p style={{ fontSize: '28px', fontWeight: '800', color: '#fff', margin: '0 0 4px', lineHeight: 1 }}>{value}</p>
-      <p style={{ fontSize: '13px', color: '#7070a0', margin: 0 }}>{label}</p>
-      {sub && <p style={{ fontSize: '11px', color: '#4a4a6a', margin: '6px 0 0' }}>{sub}</p>}
+    <div style={{ ...C.card, padding: '20px 22px' }}>
+      {loading ? (
+        <>
+          <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(255,255,255,0.04)', marginBottom: '14px' }} />
+          <div style={{ height: '26px', background: 'rgba(255,255,255,0.04)', borderRadius: '6px', width: '45%', marginBottom: '8px' }} />
+          <div style={{ height: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', width: '70%' }} />
+        </>
+      ) : (
+        <>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+            <div style={{
+              width: '34px', height: '34px', borderRadius: '9px',
+              background: color + '18', border: `1px solid ${color}30`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '17px',
+            }}>{icon}</div>
+            <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}` }} />
+          </div>
+          <p style={{ fontSize: '28px', fontWeight: '800', color: '#f0f2f8', margin: '0 0 3px', lineHeight: 1, letterSpacing: '-0.5px' }}>{value ?? 0}</p>
+          <p style={{ fontSize: '12.5px', color: '#4a5568', margin: 0, fontWeight: '500' }}>{label}</p>
+          {sub && <p style={{ fontSize: '10.5px', color: '#2d3748', margin: '4px 0 0' }}>{sub}</p>}
+        </>
+      )}
     </div>
   )
 }
 
-function RecentItem({ name, label, time, dot = '#7c3aed' }) {
+function MemberRow({ name, label, time }) {
   const initials = name?.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase() || '??'
-  const colors = ['#7c3aed','#2563eb','#059669','#d97706','#dc2626','#0891b2']
-  const color  = colors[name?.charCodeAt(0) % colors.length] || '#7c3aed'
+  const palette = ['#2563eb', '#7c3aed', '#059669', '#d97706', '#dc2626', '#0891b2']
+  const color = palette[name?.charCodeAt(0) % palette.length] || '#2563eb'
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '11px', padding: '11px 0', borderBottom: '1px solid rgba(255,255,255,0.035)' }}>
       <div style={{
-        width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
-        background: color + '22', border: `1.5px solid ${color}44`,
+        width: 34, height: 34, borderRadius: '8px', flexShrink: 0,
+        background: color + '20', border: `1px solid ${color}35`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '12px', fontWeight: '700', color,
+        fontSize: '11px', fontWeight: '700', color,
       }}>{initials}</div>
-      <div style={{ flex: 1 }}>
-        <p style={{ fontSize: '13px', fontWeight: '600', color: '#e2e2f0', margin: 0 }}>{name}</p>
-        <p style={{ fontSize: '11px', color: '#5a5a8a', margin: '2px 0 0' }}>{label}</p>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: '12.5px', fontWeight: '600', color: '#c8d0e0', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
+        <p style={{ fontSize: '10.5px', color: '#4a5568', margin: '2px 0 0' }}>{label}</p>
       </div>
-      <p style={{ fontSize: '11px', color: '#4a4a6a', flexShrink: 0 }}>{time}</p>
+      <p style={{ fontSize: '10px', color: '#2d3748', flexShrink: 0 }}>{time}</p>
     </div>
   )
 }
@@ -53,28 +62,34 @@ function fmt(dateStr) {
   const d = new Date(dateStr)
   const now = new Date()
   const diff = Math.floor((now - d) / 1000)
-  if (diff < 60)  return 'just now'
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 60)    return 'just now'
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
   return `${Math.floor(diff / 86400)}d ago`
 }
 
+function SkeletonRow() {
+  return (
+    <div style={{ display: 'flex', gap: '11px', alignItems: 'center', padding: '11px 0', borderBottom: '1px solid rgba(255,255,255,0.035)' }}>
+      <div style={{ width: 34, height: 34, borderRadius: '8px', background: 'rgba(255,255,255,0.04)', flexShrink: 0 }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ height: '11px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', width: '55%', marginBottom: '6px' }} />
+        <div style={{ height: '9px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', width: '35%' }} />
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard() {
-  const [stats,    setStats]    = useState(_cache.stats)
-  const [recent,   setRecent]   = useState(_cache.recent ?? [])
-  const [pending,  setPending]  = useState(_cache.pending ?? [])
-  const [loading,  setLoading]  = useState(!_cache.stats)
+  const [stats,   setStats]   = useState(_cache.stats)
+  const [recent,  setRecent]  = useState(_cache.recent ?? [])
+  const [pending, setPending] = useState(_cache.pending ?? [])
+  const [loading, setLoading] = useState(!_cache.stats)
 
   useEffect(() => { load() }, [])
 
   async function load() {
-    // If cache exists, show immediately — no skeleton flash on navigation
-    if (_cache.stats) {
-      setStats(_cache.stats)
-      setRecent(_cache.recent ?? [])
-      setPending(_cache.pending ?? [])
-      setLoading(false)
-    }
+    if (_cache.stats) { setStats(_cache.stats); setRecent(_cache.recent ?? []); setPending(_cache.pending ?? []); setLoading(false) }
     try {
       const [
         { count: activeCount },
@@ -91,21 +106,11 @@ export default function Dashboard() {
         supabase.from('members').select('id, full_name, membership_type, created_at').eq('membership_status', 'pending').order('created_at', { ascending: false }).limit(5),
         supabase.from('members').select('id, full_name, expiration_date').eq('membership_status', 'active').lte('expiration_date', new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]).gte('expiration_date', new Date().toISOString().split('T')[0]),
       ])
-
-      _cache.stats = {
-        active:   activeCount  || 0,
-        pending:  pendingCount || 0,
-        trainers: trainerCount || 0,
-        expiring: expiringMembers?.length || 0,
-      }
+      _cache.stats   = { active: activeCount || 0, pending: pendingCount || 0, trainers: trainerCount || 0, expiring: expiringMembers?.length || 0 }
       _cache.recent  = recentMembers  || []
       _cache.pending = pendingMembers || []
-
-      setStats(_cache.stats)
-      setRecent(_cache.recent)
-      setPending(_cache.pending)
+      setStats(_cache.stats); setRecent(_cache.recent); setPending(_cache.pending)
     } catch {
-      // fail silently — show zeros only if no cache
       if (!_cache.stats) setStats({ active: 0, pending: 0, trainers: 0, expiring: 0 })
     }
     setLoading(false)
@@ -113,109 +118,78 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      {/* Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <h2 style={{ fontSize: '24px', fontWeight: '800', color: '#fff', margin: 0 }}>Dashboard</h2>
-        <p style={{ color: '#5a5a8a', fontSize: '13px', marginTop: '4px' }}>Welcome back, Admin — here's what's happening today</p>
+      {/* Page Header */}
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '22px', fontWeight: '800', color: '#f0f2f8', margin: '0 0 4px', letterSpacing: '-0.3px' }}>Dashboard</h1>
+        <p style={{ color: '#4a5568', fontSize: '13px', margin: 0 }}>Welcome back, Admin — here's what's happening today</p>
       </div>
 
-      {/* Stat Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px', marginBottom: '28px' }}>
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '22px 24px', height: '110px' }}>
-              <div style={{ height: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', marginBottom: '16px', width: '50%' }} />
-              <div style={{ height: '28px', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', marginBottom: '10px', width: '40%' }} />
-              <div style={{ height: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', width: '70%' }} />
+      {/* Stats Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '24px' }}>
+        <StatCard loading={loading} icon="👥" label="Active Members"   value={stats?.active}   color="#22c55e"  sub="Currently enrolled" />
+        <StatCard loading={loading} icon="⏳" label="Pending Approval" value={stats?.pending}  color="#f59e0b"  sub="Awaiting review" />
+        <StatCard loading={loading} icon="💪" label="Trainers"          value={stats?.trainers} color="#3b82f6"  sub="On the team" />
+        <StatCard loading={loading} icon="⚠️" label="Expiring Soon"    value={stats?.expiring} color="#ef4444"  sub="Within 7 days" />
+      </div>
+
+      {/* Lower Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+        {/* Recent Members */}
+        <div style={{ ...C.card, padding: '20px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+            <div>
+              <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#c8d0e0', margin: 0 }}>Recent Members</h3>
+              <p style={{ fontSize: '11px', color: '#2d3748', margin: '2px 0 0' }}>Most recently approved</p>
             </div>
-          ))
-        ) : (
-          <>
-            <StatCard icon="👥" label="Active Members"   value={stats?.active}   color="#22c55e"  sub="Currently enrolled" />
-            <StatCard icon="⏳" label="Pending Approval" value={stats?.pending}  color="#f59e0b"  sub="Waiting for review" />
-            <StatCard icon="💪" label="Trainers"          value={stats?.trainers} color="#7c3aed"  sub="On the team" />
-            <StatCard icon="⚠️" label="Expiring Soon"    value={stats?.expiring} color="#ef4444"  sub="Within 7 days" />
-          </>
-        )}
-      </div>
-
-      {/* Lower grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
-
-        {/* Recent Active Members */}
-        <div style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#e2e2f0', margin: 0 }}>Recent Members</h3>
-            <span style={{ fontSize: '11px', color: '#4a4a6a' }}>Latest active</span>
+            <span style={{ fontSize: '10px', color: '#2d3748', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '6px', padding: '3px 8px', fontWeight: '500' }}>Latest active</span>
           </div>
-          <p style={{ fontSize: '12px', color: '#4a4a6a', margin: '0 0 16px' }}>Most recently approved</p>
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ height: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', marginBottom: '6px', width: '60%' }} />
-                  <div style={{ height: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', width: '40%' }} />
-                </div>
-              </div>
-            ))
-          ) : recent.length === 0 ? (
-            <p style={{ color: '#4a4a6a', fontSize: '13px', textAlign: 'center', padding: '24px 0' }}>No active members yet</p>
-          ) : (
-            recent.map(m => (
-              <RecentItem key={m.id} name={m.full_name} label={m.membership_type || 'Member'} time={fmt(m.created_at)} />
-            ))
-          )}
+          {loading ? Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />) :
+           recent.length === 0 ? <p style={{ color: '#2d3748', fontSize: '13px', textAlign: 'center', padding: '24px 0' }}>No active members yet</p> :
+           recent.map(m => <MemberRow key={m.id} name={m.full_name} label={m.membership_type || 'Member'} time={fmt(m.created_at)} />)
+          }
         </div>
 
         {/* Pending Approvals */}
-        <div style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px', padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
-            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#e2e2f0', margin: 0 }}>Pending Approvals</h3>
+        <div style={{ ...C.card, padding: '20px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+            <div>
+              <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#c8d0e0', margin: 0 }}>Pending Approvals</h3>
+              <p style={{ fontSize: '11px', color: '#2d3748', margin: '2px 0 0' }}>Registrations needing review</p>
+            </div>
             {stats?.pending > 0 && (
-              <span style={{ background: 'rgba(245,158,11,0.15)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.3)', borderRadius: '20px', padding: '2px 10px', fontSize: '11px', fontWeight: '700' }}>
+              <span style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '20px', padding: '2px 10px', fontSize: '10.5px', fontWeight: '700' }}>
                 {stats.pending} waiting
               </span>
             )}
           </div>
-          <p style={{ fontSize: '12px', color: '#4a4a6a', margin: '0 0 16px' }}>Registrations needing review</p>
-          {loading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} style={{ display: 'flex', gap: '12px', alignItems: 'center', padding: '12px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ height: '12px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', marginBottom: '6px', width: '60%' }} />
-                  <div style={{ height: '10px', background: 'rgba(255,255,255,0.04)', borderRadius: '4px', width: '40%' }} />
-                </div>
-              </div>
-            ))
-          ) : pending.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '24px 0' }}>
-              <p style={{ fontSize: '28px', marginBottom: '8px' }}>✅</p>
-              <p style={{ color: '#4a4a6a', fontSize: '13px' }}>All caught up!</p>
-            </div>
-          ) : (
-            pending.map(m => (
-              <RecentItem key={m.id} name={m.full_name} label={m.membership_type || 'Pending'} time={fmt(m.created_at)} dot="#f59e0b" />
-            ))
-          )}
+          {loading ? Array.from({ length: 4 }).map((_, i) => <SkeletonRow key={i} />) :
+           pending.length === 0 ? (
+             <div style={{ textAlign: 'center', padding: '28px 0' }}>
+               <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px', fontSize: '18px' }}>✅</div>
+               <p style={{ color: '#2d3748', fontSize: '12.5px', fontWeight: '600' }}>All caught up!</p>
+             </div>
+           ) : pending.map(m => <MemberRow key={m.id} name={m.full_name} label={m.membership_type || 'Pending'} time={fmt(m.created_at)} />)
+          }
         </div>
       </div>
 
       {/* Quick Guide */}
-      <div style={{ marginTop: '18px', background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: '14px', padding: '20px 24px' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#a78bfa', margin: '0 0 12px' }}>⚡ Admin Quick Guide</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '14px' }}>
+      <div style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.12)', borderRadius: '12px', padding: '18px 22px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+          <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3b82f6', boxShadow: '0 0 6px #3b82f6' }} />
+          <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#60a5fa', margin: 0 }}>Admin Quick Guide</h3>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px' }}>
           {[
-            { step: '1', title: 'Register Member', desc: 'Use QR page or let them scan the QR code to self-register', color: '#059669' },
-            { step: '2', title: 'Approve Member', desc: 'Go to Approvals → Accept to activate their membership', color: '#7c3aed' },
-            { step: '3', title: 'Create Account', desc: 'Go to Members → Create Account so they can log into the app', color: '#2563eb' },
-            { step: '4', title: 'Assign Trainer', desc: 'Go to Trainers → create trainer account, then Members → Assign Trainer', color: '#d97706' },
+            { step: '1', title: 'Register Member',  desc: 'Use QR page or let them scan the QR code to self-register', color: '#22c55e' },
+            { step: '2', title: 'Approve Member',   desc: 'Go to Approvals → Accept to activate their membership', color: '#3b82f6' },
+            { step: '3', title: 'Create Account',   desc: 'Go to Members → Create Account so they can log into the app', color: '#7c3aed' },
+            { step: '4', title: 'Assign Trainer',   desc: 'Create trainer account, then assign from Members page', color: '#f59e0b' },
           ].map(({ step, title, desc, color }) => (
-            <div key={step} style={{ padding: '14px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: color + '25', border: `1px solid ${color}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '800', color, marginBottom: '10px' }}>{step}</div>
-              <p style={{ fontSize: '12px', fontWeight: '700', color: '#c0c0e0', margin: '0 0 5px' }}>{title}</p>
-              <p style={{ fontSize: '11px', color: '#5a5a8a', margin: 0, lineHeight: 1.5 }}>{desc}</p>
+            <div key={step} style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: color + '20', border: `1px solid ${color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '800', color, marginBottom: '9px' }}>{step}</div>
+              <p style={{ fontSize: '11.5px', fontWeight: '700', color: '#8892a4', margin: '0 0 4px' }}>{title}</p>
+              <p style={{ fontSize: '10.5px', color: '#2d3748', margin: 0, lineHeight: 1.5 }}>{desc}</p>
             </div>
           ))}
         </div>

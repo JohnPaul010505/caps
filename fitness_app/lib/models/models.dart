@@ -63,7 +63,7 @@ class Member {
 
   bool get isExpiringSoon {
     if (expirationDate == null) return false;
-    final exp  = DateTime.tryParse(expirationDate!);
+    final exp = DateTime.tryParse(expirationDate!);
     if (exp == null) return false;
     return exp.isBefore(DateTime.now().add(const Duration(days: 7)));
   }
@@ -94,9 +94,8 @@ class Trainer {
     fullName:      m['full_name'] as String? ?? 'Unknown',
     specialty:     m['specialty'] as String?,
     availableDays: (m['available_days'] as List<dynamic>?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        [],
+        ?.map((e) => e.toString())
+        .toList() ?? [],
     createdAt: m['created_at'] != null
         ? DateTime.tryParse(m['created_at'] as String)
         : null,
@@ -104,6 +103,11 @@ class Trainer {
 }
 
 // ─── Message ─────────────────────────────────────────────────────────────────
+//
+// Requires these columns in Supabase (run once in SQL Editor):
+//   ALTER TABLE messages ADD COLUMN IF NOT EXISTS message_type text DEFAULT 'text';
+//   ALTER TABLE messages ADD COLUMN IF NOT EXISTS image_url text;
+//
 
 class ChatMessage {
   final String   id;
@@ -111,6 +115,8 @@ class ChatMessage {
   final String   receiverId;
   final String   message;
   final DateTime timestamp;
+  final String   messageType; // 'text' | 'image'
+  final String?  imageUrl;
 
   const ChatMessage({
     required this.id,
@@ -118,26 +124,30 @@ class ChatMessage {
     required this.receiverId,
     required this.message,
     required this.timestamp,
+    this.messageType = 'text',
+    this.imageUrl,
   });
 
   factory ChatMessage.fromMap(Map<String, dynamic> m) => ChatMessage(
-    id:         m['id'] as String,
-    senderId:   m['sender_id'] as String,
-    receiverId: m['receiver_id'] as String,
-    message:    m['message'] as String? ?? '',
-    timestamp:  DateTime.parse(m['timestamp'] as String),
+    id:          m['id'] as String,
+    senderId:    m['sender_id'] as String,
+    receiverId:  m['receiver_id'] as String,
+    message:     m['message'] as String? ?? '',
+    timestamp:   DateTime.parse(m['timestamp'] as String),
+    messageType: m['message_type'] as String? ?? 'text',
+    imageUrl:    m['image_url'] as String?,
   );
 }
 
 // ─── Workout Log ─────────────────────────────────────────────────────────────
 
 class WorkoutLog {
-  final String   id;
-  final String   memberId;
-  final String   workoutType;
-  final int?     duration;       // minutes
-  final int?     caloriesBurned;
-  final String   date;
+  final String id;
+  final String memberId;
+  final String workoutType;
+  final int?   duration;
+  final int?   caloriesBurned;
+  final String date;
 
   const WorkoutLog({
     required this.id,
@@ -159,15 +169,22 @@ class WorkoutLog {
 }
 
 // ─── Meal Log ────────────────────────────────────────────────────────────────
+//
+// Requires these columns in Supabase (run once in SQL Editor):
+//   ALTER TABLE meal_logs ADD COLUMN IF NOT EXISTS carbs     numeric;
+//   ALTER TABLE meal_logs ADD COLUMN IF NOT EXISTS image_url text;
+//
 
 class MealLog {
-  final String id;
-  final String memberId;
-  final String mealType;   // breakfast | lunch | dinner | snack
-  final String foodName;
-  final int?   calories;
+  final String  id;
+  final String  memberId;
+  final String  mealType;   // breakfast | lunch | dinner | snack
+  final String  foodName;
+  final int?    calories;
   final double? protein;
-  final String date;
+  final double? carbs;     // ← NEW field
+  final String  date;
+  final String? imageUrl;  // ← NEW field (Supabase Storage public URL)
 
   const MealLog({
     required this.id,
@@ -176,7 +193,9 @@ class MealLog {
     required this.foodName,
     this.calories,
     this.protein,
+    this.carbs,
     required this.date,
+    this.imageUrl,
   });
 
   factory MealLog.fromMap(Map<String, dynamic> m) => MealLog(
@@ -186,6 +205,8 @@ class MealLog {
     foodName: m['food_name'] as String? ?? '',
     calories: m['calories'] as int?,
     protein:  (m['protein'] as num?)?.toDouble(),
+    carbs:    (m['carbs'] as num?)?.toDouble(),   // ← reads new column
     date:     m['date'] as String? ?? '',
+    imageUrl: m['image_url'] as String?,           // ← reads new column
   );
 }

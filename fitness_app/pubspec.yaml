@@ -32,6 +32,11 @@ dependencies:
   # Relative timestamps in chat ("2 min ago")
   timeago: ^3.6.1
 
+  # Camera / Gallery image picking (for meal photos & chat images)
+  # iOS:  add NSCameraUsageDescription + NSPhotoLibraryUsageDescription to Info.plist
+  # Android: no extra config needed for SDK < 33; for SDK 33+ READ_MEDIA_IMAGES is auto-added
+  image_picker: ^1.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

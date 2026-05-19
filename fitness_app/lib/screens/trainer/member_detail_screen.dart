@@ -10,7 +10,7 @@ import '../../widgets/app_widgets.dart';
 // ─── Providers ───────────────────────────────────────────────────────────────
 
 final memberDetailProvider =
-    FutureProvider.family<Member?, String>((ref, memberId) async {
+FutureProvider.family<Member?, String>((ref, memberId) async {
   final res = await Supabase.instance.client
       .from('members')
       .select()
@@ -20,7 +20,7 @@ final memberDetailProvider =
 });
 
 final memberWorkoutsThisWeekProvider =
-    FutureProvider.family<List<WorkoutLog>, String>((ref, memberId) async {
+FutureProvider.family<List<WorkoutLog>, String>((ref, memberId) async {
   final weekAgo = DateTime.now().subtract(const Duration(days: 7));
   final res = await Supabase.instance.client
       .from('workout_logs')
@@ -31,17 +31,17 @@ final memberWorkoutsThisWeekProvider =
 });
 
 final chatMessagesProvider =
-    StreamProvider.family<List<ChatMessage>, _ChatArgs>((ref, args) {
+StreamProvider.family<List<ChatMessage>, _ChatArgs>((ref, args) {
   return Supabase.instance.client
       .from('messages')
       .stream(primaryKey: ['id'])
       .order('timestamp')
       .map((list) => list
-          .map((m) => ChatMessage.fromMap(m))
-          .where((m) =>
-              (m.senderId == args.myId && m.receiverId == args.otherId) ||
-              (m.senderId == args.otherId && m.receiverId == args.myId))
-          .toList());
+      .map((m) => ChatMessage.fromMap(m))
+      .where((m) =>
+  (m.senderId == args.myId && m.receiverId == args.otherId) ||
+      (m.senderId == args.otherId && m.receiverId == args.myId))
+      .toList());
 });
 
 class _ChatArgs {
@@ -101,9 +101,9 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen>
 
   @override
   Widget build(BuildContext context) {
-    final memberAsync  = ref.watch(memberDetailProvider(widget.memberId));
+    final memberAsync   = ref.watch(memberDetailProvider(widget.memberId));
     final workoutsAsync = ref.watch(memberWorkoutsThisWeekProvider(widget.memberId));
-    final myUser       = ref.watch(authProvider).user;
+    final myUser        = ref.watch(authProvider).user;
 
     return memberAsync.when(
       loading: () => const FullScreenLoader(),
@@ -111,7 +111,7 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen>
         backgroundColor: AppColors.background,
         appBar: AppBar(title: const Text('Member')),
         body: const Center(child: Text('Could not load member.',
-          style: TextStyle(color: AppColors.subtext))),
+            style: TextStyle(color: AppColors.subtext))),
       ),
       data: (member) {
         if (member == null) return const FullScreenLoader();
@@ -125,13 +125,13 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen>
             leading: const BackButton(color: AppColors.text),
             title: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(member.fullName,
-                style: const TextStyle(
-                  color: AppColors.text, fontSize: 16,
-                  fontWeight: FontWeight.w700)),
+                  style: const TextStyle(
+                      color: AppColors.text, fontSize: 16,
+                      fontWeight: FontWeight.w700)),
               Text(
-                '${member.gender ?? '—'} · ${member.age ?? '—'} yrs · ${member.weight != null ? '${member.weight!.toInt()} lbs' : '—'}',
-                style: const TextStyle(
-                  color: AppColors.subtext, fontSize: 12)),
+                  '${member.gender ?? '—'} · ${member.age ?? '—'} yrs'
+                      '${member.weight != null ? ' · ${member.weight!.toInt()} lbs' : ''}',
+                  style: const TextStyle(color: AppColors.subtext, fontSize: 12)),
             ]),
             bottom: TabBar(
               controller: _tabCtrl,
@@ -147,24 +147,24 @@ class _MemberDetailScreenState extends ConsumerState<MemberDetailScreen>
           body: TabBarView(
             controller: _tabCtrl,
             children: [
-
-              // ── Progress Tab ──────────────────────────────────────────
+              // ── Progress Tab ──────────────────────────────────────
               _ProgressTab(member: member, workoutsAsync: workoutsAsync),
 
-              // ── Chat Tab ──────────────────────────────────────────────
+              // ── Chat Tab ──────────────────────────────────────────
               if (chatArgs != null)
                 _ChatTab(
                   args: chatArgs,
                   myId: myUser!.id,
+                  memberName: member.fullName,
                   onSend: () => _send(myUser.id, member.userId!),
                   controller: _chatCtrl,
                   sending: _sending,
                 )
               else
                 const Center(child: Text(
-                  'Chat unavailable — member has no linked account.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppColors.subtext))),
+                    'Chat unavailable — member has no linked account.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.subtext))),
             ],
           ),
         );
@@ -183,21 +183,16 @@ class _ProgressTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final workouts  = workoutsAsync.value ?? [];
-    final workoutsDone = workouts.length;
-    final totalCals    = workouts.fold(0, (s, w) => s + (w.caloriesBurned ?? 0));
-
-    // Mocked week progress percentages — replace with real DB aggregates
-    const workoutPct = 0.75;
-    const caloriePct = 0.60;
-    const waterPct   = 0.50;
+    final workouts      = workoutsAsync.value ?? [];
+    final workoutsDone  = workouts.length;
+    final totalCals     = workouts.fold(0, (s, w) => s + (w.caloriesBurned ?? 0));
 
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
         const Text("This week's progress",
-          style: TextStyle(color: AppColors.text, fontSize: 16,
-            fontWeight: FontWeight.w700)),
+            style: TextStyle(color: AppColors.text, fontSize: 16,
+                fontWeight: FontWeight.w700)),
         const SizedBox(height: 16),
 
         FitCard(
@@ -205,7 +200,7 @@ class _ProgressTab extends StatelessWidget {
             _ProgressRow(
               label: 'Workouts completed',
               subtitle: '$workoutsDone / 5 sessions',
-              value: workoutsDone / 5,
+              value: (workoutsDone / 5).clamp(0.0, 1.0),
               color: AppColors.purple,
             ),
             const SizedBox(height: 16),
@@ -216,10 +211,10 @@ class _ProgressTab extends StatelessWidget {
               color: AppColors.green,
             ),
             const SizedBox(height: 16),
-            _ProgressRow(
+            const _ProgressRow(
               label: 'Water intake',
               subtitle: '1.2L / 2.5L',
-              value: waterPct,
+              value: 0.48,
               color: AppColors.amber,
             ),
           ]),
@@ -227,18 +222,18 @@ class _ProgressTab extends StatelessWidget {
 
         const SizedBox(height: 20),
         const Text('Member Info',
-          style: TextStyle(color: AppColors.text, fontSize: 15,
-            fontWeight: FontWeight.w700)),
+            style: TextStyle(color: AppColors.text, fontSize: 15,
+                fontWeight: FontWeight.w700)),
         const SizedBox(height: 12),
 
         FitCard(
           child: Column(children: [
-            _InfoRow('Goal',        member.goal ?? '—'),
-            _InfoRow('Membership',  member.membershipType ?? '—'),
-            _InfoRow('Expires',     member.expirationDate ?? '—'),
-            _InfoRow('Height',      member.height != null ? '${member.height} cm' : '—'),
-            _InfoRow('Weight',      member.weight != null ? '${member.weight} kg' : '—'),
-            _InfoRow('Contact',     member.contactNumber ?? '—'),
+            _InfoRow('Goal',       member.goal ?? '—'),
+            _InfoRow('Membership', member.membershipType ?? '—'),
+            _InfoRow('Expires',    member.expirationDate ?? '—'),
+            _InfoRow('Height',     member.height != null ? '${member.height} cm' : '—'),
+            _InfoRow('Weight',     member.weight != null ? '${member.weight} kg' : '—'),
+            _InfoRow('Contact',    member.contactNumber ?? '—'),
           ]),
         ),
       ],
@@ -250,7 +245,7 @@ class _ProgressRow extends StatelessWidget {
   final String label;
   final String subtitle;
   final double value;
-  final Color color;
+  final Color  color;
 
   const _ProgressRow({
     required this.label,
@@ -264,9 +259,12 @@ class _ProgressRow extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-        Text(label, style: const TextStyle(color: AppColors.text, fontSize: 13,
-          fontWeight: FontWeight.w500)),
-        Text(subtitle, style: const TextStyle(color: AppColors.subtext, fontSize: 12)),
+        Text(label,
+            style: const TextStyle(
+                color: AppColors.text, fontSize: 13,
+                fontWeight: FontWeight.w500)),
+        Text(subtitle,
+            style: const TextStyle(color: AppColors.subtext, fontSize: 12)),
       ]),
       const SizedBox(height: 8),
       GradientProgressBar(value: value, color: color, height: 7),
@@ -285,135 +283,205 @@ class _InfoRow extends StatelessWidget {
     child: Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(
-          color: AppColors.subtext, fontSize: 13)),
-        Text(value, style: const TextStyle(
-          color: AppColors.text, fontSize: 13, fontWeight: FontWeight.w500)),
+        Text(label,
+            style: const TextStyle(color: AppColors.subtext, fontSize: 13)),
+        Text(value,
+            style: const TextStyle(
+                color: AppColors.text, fontSize: 13,
+                fontWeight: FontWeight.w500)),
       ],
     ),
   );
 }
 
 // ─── Chat Tab ────────────────────────────────────────────────────────────────
+//
+// Uses ListView(reverse: true) so newest messages always sit at the bottom,
+// exactly like Messenger — no manual scroll-to-bottom needed.
+//
 
-class _ChatTab extends ConsumerWidget {
-  final _ChatArgs args;
-  final String myId;
-  final VoidCallback onSend;
+class _ChatTab extends ConsumerStatefulWidget {
+  final _ChatArgs            args;
+  final String               myId;
+  final String               memberName;
+  final VoidCallback         onSend;
   final TextEditingController controller;
-  final bool sending;
+  final bool                 sending;
 
   const _ChatTab({
     required this.args,
     required this.myId,
+    required this.memberName,
     required this.onSend,
     required this.controller,
     required this.sending,
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final msgs = ref.watch(chatMessagesProvider(args));
+  ConsumerState<_ChatTab> createState() => _ChatTabState();
+}
 
-    return Column(children: [
-      Expanded(
-        child: msgs.when(
-          loading: () => const Center(child: CircularProgressIndicator(
-            color: AppColors.purple)),
-          error: (_, __) => const Center(child: Text('Could not load chat.',
-            style: TextStyle(color: AppColors.subtext))),
-          data: (messages) => messages.isEmpty
-            ? const Center(child: Text('No messages yet.\nSend a recommendation!',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.subtext)))
-            : ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: messages.length,
-                itemBuilder: (_, i) {
-                  final m   = messages[i];
-                  final isMe = m.senderId == myId;
-                  return _Bubble(message: m.message, isMe: isMe,
-                    time: _fmt(m.timestamp));
-                },
-              ),
-        ),
-      ),
-
-      // Input row
-      Container(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
-        decoration: const BoxDecoration(
-          color: Color(0xFF13131E),
-          border: Border(top: BorderSide(color: AppColors.cardBorder, width: 0.5)),
-        ),
-        child: Row(children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              style: const TextStyle(color: AppColors.text, fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'Send recommendation…',
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 12),
-                fillColor: AppColors.card,
-                filled: true,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              onSubmitted: (_) => onSend(),
-            ),
-          ),
-          const SizedBox(width: 10),
-          GestureDetector(
-            onTap: sending ? null : onSend,
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.purple, AppColors.purpleLight]),
-                shape: BoxShape.circle,
-              ),
-              alignment: Alignment.center,
-              child: sending
-                ? const SizedBox(width: 18, height: 18,
-                    child: CircularProgressIndicator(
-                      color: Colors.white, strokeWidth: 2))
-                : const Icon(Icons.send_rounded, color: Colors.white, size: 18),
-            ),
-          ),
-        ]),
-      ),
-    ]);
-  }
+class _ChatTabState extends ConsumerState<_ChatTab> {
+  int? _tappedIdx;
 
   String _fmt(DateTime dt) {
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
     return '$h:$m';
   }
+
+  @override
+  Widget build(BuildContext context) {
+    final msgs = ref.watch(chatMessagesProvider(widget.args));
+
+    return Column(children: [
+      // ── Message list ──────────────────────────────────────────────
+      Expanded(
+        child: msgs.when(
+          loading: () => const Center(
+              child: CircularProgressIndicator(color: AppColors.purple)),
+          error: (_, __) => const Center(child: Text('Could not load chat.',
+              style: TextStyle(color: AppColors.subtext))),
+          data: (messages) {
+            if (messages.isEmpty) {
+              return const Center(child: Text(
+                  'No messages yet.\nSend a recommendation!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: AppColors.subtext)));
+            }
+
+            // Reverse the list so index 0 = newest → rendered at bottom
+            final reversed = messages.reversed.toList();
+
+            return GestureDetector(
+              onTap: () => setState(() => _tappedIdx = null),
+              child: ListView.builder(
+                reverse: true,
+                padding: const EdgeInsets.all(16),
+                itemCount: reversed.length,
+                itemBuilder: (_, i) {
+                  final m    = reversed[i];
+                  final isMe = m.senderId == widget.myId;
+                  final showTs = _tappedIdx == i;
+
+                  return GestureDetector(
+                    onTap: () => setState(
+                            () => _tappedIdx = _tappedIdx == i ? null : i),
+                    child: Column(
+                      crossAxisAlignment: isMe
+                          ? CrossAxisAlignment.end
+                          : CrossAxisAlignment.start,
+                      children: [
+                        // Show member avatar on their messages
+                        if (!isMe)
+                          Padding(
+                            padding: const EdgeInsets.only(left: 4, bottom: 4),
+                            child: AppAvatar(name: widget.memberName, size: 24),
+                          ),
+                        _Bubble(
+                            message: m.message,
+                            isMe: isMe,
+                            time: _fmt(m.timestamp)),
+                        if (showTs)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                                top: 4, bottom: 4, left: 4, right: 4),
+                            child: Text(_fmt(m.timestamp),
+                                style: const TextStyle(
+                                    color: AppColors.subtext,
+                                    fontSize: 10.5)),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+
+      // ── Input row ─────────────────────────────────────────────────
+      Container(
+        padding: EdgeInsets.fromLTRB(
+            16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 20),
+        decoration: const BoxDecoration(
+          color: Color(0xFF13131E),
+          border: Border(
+              top: BorderSide(color: AppColors.cardBorder, width: 0.5)),
+        ),
+        child: Row(children: [
+          Expanded(
+            child: TextField(
+              controller: widget.controller,
+              style: const TextStyle(color: AppColors.text, fontSize: 13),
+              maxLines: null,
+              decoration: InputDecoration(
+                hintText: 'Send recommendation…',
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16, vertical: 12),
+                fillColor: AppColors.card,
+                filled: true,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none),
+              ),
+              onSubmitted: (_) => widget.onSend(),
+            ),
+          ),
+          const SizedBox(width: 10),
+          GestureDetector(
+            onTap: widget.sending ? null : widget.onSend,
+            child: Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [AppColors.purple, AppColors.purpleLight]),
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(
+                    color: AppColors.purple.withOpacity(0.35),
+                    blurRadius: 10)],
+              ),
+              alignment: Alignment.center,
+              child: widget.sending
+                  ? const SizedBox(width: 18, height: 18,
+                  child: CircularProgressIndicator(
+                      color: Colors.white, strokeWidth: 2))
+                  : const Icon(Icons.send_rounded,
+                  color: Colors.white, size: 18),
+            ),
+          ),
+        ]),
+      ),
+    ]);
+  }
 }
+
+// ─── Bubble ───────────────────────────────────────────────────────────────────
 
 class _Bubble extends StatelessWidget {
   final String message;
-  final bool isMe;
+  final bool   isMe;
   final String time;
 
-  const _Bubble({required this.message, required this.isMe, required this.time});
+  const _Bubble({
+    required this.message,
+    required this.isMe,
+    required this.time,
+  });
 
   @override
   Widget build(BuildContext context) => Align(
     alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
     child: Column(
       crossAxisAlignment:
-          isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
         Container(
           margin: const EdgeInsets.only(bottom: 4, top: 6),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           constraints: BoxConstraints(
-            maxWidth: MediaQuery.of(context).size.width * 0.72),
+              maxWidth: MediaQuery.of(context).size.width * 0.72),
           decoration: BoxDecoration(
             color: isMe ? AppColors.purple : AppColors.card,
             borderRadius: BorderRadius.only(
@@ -424,12 +492,12 @@ class _Bubble extends StatelessWidget {
             ),
           ),
           child: Text(message,
-            style: TextStyle(
-              color: isMe ? Colors.white : AppColors.text,
-              fontSize: 13.5)),
+              style: TextStyle(
+                  color: isMe ? Colors.white : AppColors.text,
+                  fontSize: 13.5)),
         ),
         Text(time,
-          style: const TextStyle(color: AppColors.subtext, fontSize: 10)),
+            style: const TextStyle(color: AppColors.subtext, fontSize: 10)),
       ],
     ),
   );

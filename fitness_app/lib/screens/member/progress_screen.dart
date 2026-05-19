@@ -26,6 +26,7 @@ final workoutHistoryProvider =
 
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
+
 class ProgressScreen extends ConsumerWidget {
   const ProgressScreen({super.key});
 
